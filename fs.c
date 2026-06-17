@@ -48,8 +48,29 @@ int fs_init() {
 }
 
 int fs_format() {
-  printf("Função não implementada: fs_format\n");
-  return 0;
+  int tam_fat = bl_size();
+  int buffer[tam_disco];
+  for(int i = 0; i<32; i++) {
+    fat[i] = 3; // Agrupamentos da própria FAT
+  }
+  fat[32] = 4; // Agrupamento do diretório
+
+  for(int i = 33; i < tam_fat;i++) {
+    fat[i] = 1; 
+  }
+
+  for (int i = total_setores; i < FATCLUSTERS; i++) {
+    fat[i] = 1;  // Marca o resto da FAT além do tamanho do disco (se existir) como livre
+  }
+
+  for (int i = 0; i < DIRENTRIES; i++) {
+    dir[i].used = 0; // Nenhuma entrada do diretório está em uso
+  }
+
+  //FALTA GRAVAR A FAT E GRAVAR O DIRETÓRIO
+
+
+  return 1;
 }
 
 int fs_free() {
