@@ -48,34 +48,36 @@ int fs_init() {
 }
 
 int fs_format() {
-  int tam_fat = bl_size();
-  int buffer[tam_disco];
+  int buffer[1];
   for(int i = 0; i<32; i++) {
     fat[i] = 3; // Agrupamentos da própria FAT
   }
   fat[32] = 4; // Agrupamento do diretório
-
-  for(int i = 33; i < tam_fat;i++) {
+  for(int i = 33; i < FATCLUSTERS;i++) {
     fat[i] = 1; 
   }
-
-  for (int i = total_setores; i < FATCLUSTERS; i++) {
+  /*for (int i = total_setores; i < FATCLUSTERS; i++) {
     fat[i] = 1;  // Marca o resto da FAT além do tamanho do disco (se existir) como livre
-  }
+  }*/
 
   for (int i = 0; i < DIRENTRIES; i++) {
     dir[i].used = 0; // Nenhuma entrada do diretório está em uso
   }
 
   //FALTA GRAVAR A FAT E GRAVAR O DIRETÓRIO
-
+  
 
   return 1;
 }
 
 int fs_free() {
-  printf("Função não implementada: fs_free\n");
-  return 0;
+  int free_clusters = 0;
+  for (int i = 33; i < FATCLUSTERS; i++) { // Podemos começar direto no 33 já que os primeiros 32 estão ocupados pela FAT e o 33 pelo diretório e sempre vão estar ocupados (eu acho)
+    if (fat[i] == 1) {
+      free_clusters++;
+    }
+  }
+  return free_clusters * CLUSTERSIZE;
 }
 
 int fs_list(char *buffer, int size) {
@@ -84,8 +86,26 @@ int fs_list(char *buffer, int size) {
 }
 
 int fs_create(char* file_name) {
-  printf("Função não implementada: fs_create\n");
-  return 0;
+  if(strlen(file_name) > 25) {
+    printf("Nome do arquivo deve ter no maximo 25 caracteres\n");
+    return 0;
+  }
+  int primeiro_livre = 0;
+  int controle = 0;
+  for(int i = 0; i < DIRENTRIES; i++){
+    if (controle == 0 && dir[i].used == 0) {
+      primeiro_livre = i; //Só pra n ter que fazer 2 loops, um pra verificar e um pra criar
+      controle = 1;
+    } else if (dir[i].used == 1 && strncmp(dir[i].name, file_name, 25) == 0) { // Se o arquivo existir e a strcmp der 0, significa que o nome do arquivo já existe no diretório
+      printf("Ja existe arquivo com esse nome\n");
+      return 0;
+    }
+  }
+  dir[primeiro_livre].used = 1;
+  strncpy(dir[primeiro_livre].name, file_name, 25);
+  dir[primeiro_livre].first_block = 0; 
+  dir[primeiro_livre].size = 0;
+  return 1;
 }
 
 int fs_remove(char *file_name) {

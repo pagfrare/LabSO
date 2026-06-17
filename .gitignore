@@ -1,0 +1,4 @@
+disk.o
+fs.o
+shell.o
+.vscode/tasks.json
