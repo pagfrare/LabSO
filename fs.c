@@ -48,7 +48,6 @@ int fs_init() {
 }
 
 int fs_format() {
-  int buffer[1];
   for(int i = 0; i<32; i++) {
     fat[i] = 3; // Agrupamentos da própria FAT
   }
@@ -56,17 +55,12 @@ int fs_format() {
   for(int i = 33; i < FATCLUSTERS;i++) {
     fat[i] = 1; 
   }
-  /*for (int i = total_setores; i < FATCLUSTERS; i++) {
-    fat[i] = 1;  // Marca o resto da FAT além do tamanho do disco (se existir) como livre
-  }*/
-
   for (int i = 0; i < DIRENTRIES; i++) {
     dir[i].used = 0; // Nenhuma entrada do diretório está em uso
   }
-
-  //FALTA GRAVAR A FAT E GRAVAR O DIRETÓRIO
-  
-
+  if(write_fat() == 0 || write_dir() == 0) {
+    return 0;
+  }
   return 1;
 }
 
@@ -81,13 +75,22 @@ int fs_free() {
 }
 
 int fs_list(char *buffer, int size) {
-  printf("Função não implementada: fs_list\n");
-  return 0;
+  char buffer2[size];
+  for (int i = 0; i < DIRENTRIES; i++){
+    if(dir[i].used == 1){
+      strncpy(buffer2,dir[i].name,25);
+      strcat(buffer2, "   ");
+      //tem que terminar aqui chefe
+    
+    }
+  }
+  strncpy(buffer,buffer2,size);
+  return 1;
 }
 
 int fs_create(char* file_name) {
   if(strlen(file_name) > 25) {
-    printf("Nome do arquivo deve ter no maximo 25 caracteres\n");
+    printf("[ERRO] Nome do arquivo deve ter no maximo 25 caracteres\n");
     return 0;
   }
   int primeiro_livre = 0;
@@ -97,7 +100,7 @@ int fs_create(char* file_name) {
       primeiro_livre = i; //Só pra n ter que fazer 2 loops, um pra verificar e um pra criar
       controle = 1;
     } else if (dir[i].used == 1 && strncmp(dir[i].name, file_name, 25) == 0) { // Se o arquivo existir e a strcmp der 0, significa que o nome do arquivo já existe no diretório
-      printf("Ja existe arquivo com esse nome\n");
+      printf("[ERRO] Ja existe arquivo com esse nome\n");
       return 0;
     }
   }
@@ -106,10 +109,31 @@ int fs_create(char* file_name) {
   dir[primeiro_livre].first_block = 0; 
   dir[primeiro_livre].size = 0;
   return 1;
+  write_dir();
 }
 
 int fs_remove(char *file_name) {
-  printf("Função não implementada: fs_remove\n");
+  for (int i = 0; i < DIRENTRIES; i++) {
+    if (dir[i].used == 1 && strncmp(dir[i].name, file_name, 25) == 0) {
+      dir[i].used = 0; // Marca a entrada do diretório como livre
+      unsigned short block = dir[i].first_block;
+      while(1){
+        if(fat[block] == 2){
+          fat[block] = 1; // Marca o bloco como livre
+          break;
+        } else {
+          unsigned short next_block = fat[block];
+          fat[block] = 1; // Marca o bloco como livre
+          block = next_block;
+        }
+
+      }
+      write_fat();
+      write_dir();
+      return 1;
+    }
+  }
+  printf("[ERRO] nao existe arquivo com esse nome\n");
   return 0;
 }
 
@@ -133,3 +157,18 @@ int fs_read(char *buffer, int size, int file) {
   return -1;
 }
 
+//funcoes auxiliares para nao ficar copiando o mesmo codigo
+int write_fat(){
+   for (int i = 0; i < 32; i++) {
+    if(bl_write(i, ((char*)fat) + (i * CLUSTERSIZE)) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+int write_dir(){
+  if(bl_write(32, (char*)dir) == 0) {
+    return 0;
+  }
+  return 1;
+}
