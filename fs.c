@@ -79,7 +79,7 @@ int fs_format() {
 
 int fs_free(){
   if(!formatado()){
-    printf("[ERRO] Disco não formatado");
+    printf("[ERRO] Disco não formatado\n");
     return 0;
   }
   int free_clusters = 0;
@@ -93,7 +93,7 @@ int fs_free(){
 
 int fs_list(char *buffer, int size) {
   if(!formatado()){
-    printf("[ERRO] Disco não formatado");
+    printf("[ERRO] Disco não formatado\n");
     return 0;
   }
   if (size <= 0) {
@@ -118,7 +118,7 @@ int fs_list(char *buffer, int size) {
 
 int fs_create(char* file_name){
   if(!formatado()){
-    printf("[ERRO] Disco não formatado");
+    printf("[ERRO] Disco não formatado\n");
     return 0;
   }
   if(strlen(file_name) > 24) {
@@ -137,7 +137,7 @@ int fs_create(char* file_name){
     }
   }
   if(primeiro_livre == -1){
-    printf("[ERRO] Diretorio cheio");
+    printf("[ERRO] Diretorio cheio\n");
     return 0;
   }
   dir[primeiro_livre].used = 1;
@@ -150,7 +150,7 @@ int fs_create(char* file_name){
 
 int fs_remove(char *file_name) {
   if(!formatado()){
-    printf("[ERRO] Disco não formatado");
+    printf("[ERRO] Disco não formatado\n");
     return 0;
   }
   for (int i = 0; i < DIRENTRIES; i++) {
