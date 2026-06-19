@@ -41,6 +41,9 @@ typedef struct {
 
 dir_entry dir[DIRENTRIES];
 
+int write_fat();//Declaração das funções auxiliares
+int write_dir();
+int formatado();
 
 int fs_init(){
   for (int i = 0; i < 32; i++) {
