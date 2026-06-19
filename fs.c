@@ -42,8 +42,18 @@ typedef struct {
 dir_entry dir[DIRENTRIES];
 
 
-int fs_init() {
-  printf("Função não implementada: fs_init\n");
+int fs_init(){
+  for (int i = 0; i < 32; i++) {
+    if(bl_read(i, ((char*)fat) + (i * CLUSTERSIZE)) == 0) {
+      return 0;
+    }
+  }
+  if(bl_read(32,(char *)dir) == 0){
+    return 0;
+  }
+  if(!formatado()){
+    printf("O disco nao esta formatado\n");
+  }
   return 1;
 }
 
@@ -52,7 +62,7 @@ int fs_format() {
     fat[i] = 3; // Agrupamentos da própria FAT
   }
   fat[32] = 4; // Agrupamento do diretório
-  for(int i = 33; i < FATCLUSTERS;i++) {
+  for(int i = 33; i < bl_size();i++) {
     fat[i] = 1; 
   }
   for (int i = 0; i < DIRENTRIES; i++) {
@@ -64,9 +74,13 @@ int fs_format() {
   return 1;
 }
 
-int fs_free() {
+int fs_free(){
+  if(!formatado()){
+    printf("[ERRO] Disco não formatado");
+    return 0;
+  }
   int free_clusters = 0;
-  for (int i = 33; i < FATCLUSTERS; i++) { // Podemos começar direto no 33 já que os primeiros 32 estão ocupados pela FAT e o 33 pelo diretório e sempre vão estar ocupados (eu acho)
+  for (int i = 33; i < bl_size(); i++) { // Podemos começar direto no 33 já que os primeiros 32 estão ocupados pela FAT e o 33 pelo diretório e sempre vão estar ocupados (eu acho)
     if (fat[i] == 1) {
       free_clusters++;
     }
@@ -75,25 +89,40 @@ int fs_free() {
 }
 
 int fs_list(char *buffer, int size) {
-  char buffer2[size];
-  for (int i = 0; i < DIRENTRIES; i++){
-    if(dir[i].used == 1){
-      strncpy(buffer2,dir[i].name,25);
-      strcat(buffer2, "   ");
-      //tem que terminar aqui chefe
+  if(!formatado()){
+    printf("[ERRO] Disco não formatado");
+    return 0;
+  }
+  if (size <= 0) {
+    return 0;
+  }
     
+  buffer[0] = '\0';
+  char buffer2[64];
+  for (int i = 0; i < DIRENTRIES; i++) {
+    if(dir[i].used == 1) {
+      sprintf(buffer2, "%s\t\t%d\n", dir[i].name, dir[i].size);
+      if (strlen(buffer) + strlen(buffer2) + 1 <= size) {
+          strcat(buffer, buffer2);
+      } else {
+          break;
+      }
     }
   }
-  strncpy(buffer,buffer2,size);
+  
   return 1;
 }
 
-int fs_create(char* file_name) {
-  if(strlen(file_name) > 25) {
+int fs_create(char* file_name){
+  if(!formatado()){
+    printf("[ERRO] Disco não formatado");
+    return 0;
+  }
+  if(strlen(file_name) > 24) {
     printf("[ERRO] Nome do arquivo deve ter no maximo 25 caracteres\n");
     return 0;
   }
-  int primeiro_livre = 0;
+  int primeiro_livre = -1;
   int controle = 0;
   for(int i = 0; i < DIRENTRIES; i++){
     if (controle == 0 && dir[i].used == 0) {
@@ -104,29 +133,38 @@ int fs_create(char* file_name) {
       return 0;
     }
   }
+  if(primeiro_livre == -1){
+    printf("[ERRO] Diretorio cheio");
+    return 0;
+  }
   dir[primeiro_livre].used = 1;
   strncpy(dir[primeiro_livre].name, file_name, 25);
   dir[primeiro_livre].first_block = 0; 
   dir[primeiro_livre].size = 0;
-  return 1;
   write_dir();
+  return 1;
 }
 
 int fs_remove(char *file_name) {
+  if(!formatado()){
+    printf("[ERRO] Disco não formatado");
+    return 0;
+  }
   for (int i = 0; i < DIRENTRIES; i++) {
     if (dir[i].used == 1 && strncmp(dir[i].name, file_name, 25) == 0) {
       dir[i].used = 0; // Marca a entrada do diretório como livre
       unsigned short block = dir[i].first_block;
-      while(1){
-        if(fat[block] == 2){
-          fat[block] = 1; // Marca o bloco como livre
-          break;
-        } else {
-          unsigned short next_block = fat[block];
-          fat[block] = 1; // Marca o bloco como livre
-          block = next_block;
+      if (dir[i].size > 0){
+        while(1){
+          if(fat[block] == 2){
+            fat[block] = 1; // Marca o bloco como livre
+            break;
+          } else {
+            unsigned short next_block = fat[block];
+            fat[block] = 1; // Marca o bloco como livre
+            block = next_block;
+          }
         }
-
       }
       write_fat();
       write_dir();
@@ -159,7 +197,7 @@ int fs_read(char *buffer, int size, int file) {
 
 //funcoes auxiliares para nao ficar copiando o mesmo codigo
 int write_fat(){
-   for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < 32; i++) {
     if(bl_write(i, ((char*)fat) + (i * CLUSTERSIZE)) == 0) {
       return 0;
     }
@@ -171,4 +209,15 @@ int write_dir(){
     return 0;
   }
   return 1;
+}
+int formatado(){
+  for(int i = 0; i < 32; i++){
+    if(fat[i] != 3){
+      return 0; //N formatado chefe
+    }
+  }
+  if(fat[32] != 4){
+    return 0;
+  }
+  return 1; //Retorna 1 para formatado
 }
