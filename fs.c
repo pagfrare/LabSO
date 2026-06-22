@@ -41,6 +41,13 @@ typedef struct {
 
 dir_entry dir[DIRENTRIES];
 
+typedef struct {
+  char mode;
+  char name[25];
+} file_mode;
+
+file_mode open_files[DIRENTRIES];
+
 int write_fat();//Declaração das funções auxiliares
 int write_dir();
 int formatado();
@@ -178,9 +185,29 @@ int fs_remove(char *file_name) {
   return 0;
 }
 
-int fs_open(char *file_name, int mode) {
-  printf("Função não implementada: fs_open\n");
-  return -1;
+int fs_open(char *file_name, int mode){
+  int existe = -1;
+  for (int i = 0; i < DIRENTRIES; i++){
+    if (strcmp(dir[i].name,file_name)){
+      existe = i;
+    }
+  }
+  if (existe == -1 && mode == FS_R){
+    printf("[ERRO] O arquivo %s não existe", file_name);
+    return -1;
+  }
+  if(existe != -1 && mode == FS_W){
+    if(!fs_remove(file_name)){return -1;}
+    if(!fs_create(file_name)){return -1;}
+  }else if( mode == FS_W){
+    if(!fs_create(file_name)){return -1;}
+  }
+  for (int i = 0; i < DIRENTRIES; i++){
+    if(strcmp(dir[i].name,file_name)){
+      existe = i;
+    }
+  }
+  return existe;
 }
 
 int fs_close(int file)  {
@@ -223,4 +250,9 @@ int formatado(){
     return 0;
   }
   return 1; //Retorna 1 para formatado
+}
+int abre_arquivo(){
+  for(int i = 0; i < DIRENTRIES; i++){
+     
+  }
 }
