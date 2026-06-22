@@ -41,12 +41,8 @@ typedef struct {
 
 dir_entry dir[DIRENTRIES];
 
-typedef struct {
-  char mode;
-  char name[25];
-} file_mode;
-
-file_mode open_files[DIRENTRIES];
+char writeFile[25] = "\0";
+char readFile[25] = "\0";
 
 int write_fat();//Declaração das funções auxiliares
 int write_dir();
@@ -207,12 +203,24 @@ int fs_open(char *file_name, int mode){
       existe = i;
     }
   }
+  if(mode){
+    strcpy(writeFile, dir[existe].name);
+  } else{
+    strcpy(readFile, dir[existe].name);
+  }
   return existe;
 }
 
-int fs_close(int file)  {
-  printf("Função não implementada: fs_close\n");
-  return 0;
+int fs_close(int file) {
+  if(dir[file].used == 0 || (strcmp(dir[file].name,writeFile) != 0 && strcmp(dir[file].name,readFile) != 0)){
+    printf("[ERRO] Não existe arquivo aberto com esse identificador");
+  }
+  if(strcmp(dir[file].name,writeFile) == 0){
+    writeFile[0] = "\0";
+  }else{
+    readFile[0] = "\0";
+  }
+
 }
 
 int fs_write(char *buffer, int size, int file) {
